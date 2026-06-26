@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SCD41 环境监测面板</title>
+  <style>
+    :root{
+      --bg:#f4f7fb; --card:#fff; --text:#172033; --muted:#687386;
+      --line:#e1e8f0; --primary:#2563eb; --ok:#15803d; --warn:#b45309; --bad:#b91c1c;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif}
+    .wrap{width:min(1420px,calc(100% - 30px));margin:0 auto;padding:26px 0 42px}
+    .header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}
+    h1{font-size:26px;line-height:1.25;margin:0 0 7px}
+    .subtitle,.muted{color:var(--muted);font-size:13px;line-height:1.65}
+    .status{border-radius:999px;padding:8px 12px;font-size:13px;font-weight:700;border:1px solid #bbf7d0;background:#ecfdf3;color:var(--ok);white-space:nowrap}
+    .toolbar{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 18px}
+    .ranges{display:flex;gap:8px;flex-wrap:wrap}
+    button{font:inherit;border:1px solid var(--line);background:#fff;padding:9px 13px;border-radius:8px;cursor:pointer;color:#3b4657}
+    button:hover{border-color:var(--primary);color:var(--primary)}
+    button.active{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700}
+    #refresh{background:#eef4ff;color:var(--primary);border-color:#bdd1ff}
+    .label{font-size:13px;color:var(--muted);margin:13px 0 9px}
+    .grid{display:grid;gap:14px}
+    .grid.current{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .grid.avg{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:20px}
+    .card{background:var(--card);border:1px solid var(--line);box-shadow:0 7px 20px rgba(15,23,42,.055);border-radius:12px;padding:17px;min-height:112px}
+    .name{font-size:13px;color:var(--muted);margin-bottom:14px}
+    .val{font-weight:800;font-size:29px;line-height:1;letter-spacing:-.4px}
+    .unit{font-size:13px;font-weight:500;color:var(--muted);margin-left:4px}
+    .note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}
+    .chart-card{background:var(--card);border:1px solid var(--line);box-shadow:0 7px 20px rgba(15,23,42,.055);border-radius:12px;padding:17px 17px 12px;margin-top:15px}
+    .chart-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:7px}
+    .chart-head h2{font-size:17px;margin:0}
+    .chart-head span{font-size:12px;color:var(--muted)}
+    .chart{height:280px;width:100%}
+    canvas{display:block;width:100%;height:100%}
+    .footer{font-size:12px;line-height:1.6;color:var(--muted);margin-top:18px}
+    .error{display:none;background:#fef2f2;border:1px solid #fecaca;color:var(--bad);padding:11px 13px;border-radius:9px;margin:0 0 15px;font-size:13px}
+    @media(max-width:900px){.grid.current{grid-template-columns:repeat(2,minmax(0,1fr))}.grid.avg{grid-template-columns:1fr 1fr}}
+    @media(max-width:600px){.wrap{width:min(100% - 20px,1420px);padding-top:18px}.header{flex-direction:column}.grid.avg{grid-template-columns:1fr}.card{padding:15px}.val{font-size:25px}.chart{height:245px}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="header">
+      <div>
+        <h1>SCD41 环境监测面板</h1>
+        <div class="subtitle">设备：esp32c3_003　｜　传感器：SCD41　｜　监测点：point_03</div>
+      </div>
+      <div id="status" class="status">正在加载</div>
+    </section>
+
+    <div id="error" class="error"></div>
+
+    <section class="toolbar">
+      <div class="ranges">
+        <button data-range="10m">10 分钟</button>
+        <button class="active" data-range="1h">1 小时</button>
+        <button data-range="12h">12 小时</button>
+        <button data-range="24h">24 小时</button>
+      </div>
+      <button id="refresh">刷新数据</button>
+    </section>
+
+    <div class="label">实时监测值</div>
+    <section class="grid current">
+      <article class="card"><div class="name">当前 CO₂ 浓度</div><div class="val"><span id="co2Now">--</span><span class="unit">ppm</span></div><div id="co2Note" class="note">等待数据</div></article>
+      <article class="card"><div class="name">当前温度</div><div class="val"><span id="tempNow">--</span><span class="unit">℃</span></div><div id="tempNote" class="note">等待数据</div></article>
+      <article class="card"><div class="name">当前相对湿度</div><div class="val"><span id="humNow">--</span><span class="unit">%RH</span></div><div id="humNote" class="note">等待数据</div></article>
+      <article class="card"><div class="name">当前 WiFi 信号</div><div class="val"><span id="rssiNow">--</span><span class="unit">dBm</span></div><div id="rssiNote" class="note">等待数据</div></article>
+    </section>
+
+    <div id="avgTitle" class="label">最近 1 小时平均值</div>
+    <section class="grid avg">
+      <article class="card"><div class="name">平均 CO₂ 浓度</div><div class="val"><span id="co2Avg">--</span><span class="unit">ppm</span></div><div id="sampleNote" class="note">统计样本：0 条</div></article>
+      <article class="card"><div class="name">平均温度</div><div class="val"><span id="tempAvg">--</span><span class="unit">℃</span></div><div class="note">基于所选时间段的全部有效记录</div></article>
+      <article class="card"><div class="name">平均相对湿度</div><div class="val"><span id="humAvg">--</span><span class="unit">%RH</span></div><div class="note">基于所选时间段的全部有效记录</div></article>
+    </section>
+
+    <section class="chart-card"><div class="chart-head"><h2>CO₂ 浓度变化曲线</h2><span>单位：ppm</span></div><div class="chart"><canvas id="co2Chart"></canvas></div></section>
+    <section class="chart-card"><div class="chart-head"><h2>温度变化曲线</h2><span>单位：℃</span></div><div class="chart"><canvas id="tempChart"></canvas></div></section>
+    <section class="chart-card"><div class="chart-head"><h2>相对湿度变化曲线</h2><span>单位：%RH</span></div><div class="chart"><canvas id="humChart"></canvas></div></section>
+
+    <div class="footer">页面每 30 秒自动刷新。ESP32 当前设置为每 60 秒上传一次数据。</div>
+  </main>
+
+<script>
+const API = "https://twxiavcjslxogootefox.supabase.co/functions/v1/sensor-dashboard";
+let range = "1h";
+let cacheRows = [];
+
+function n(v,d=0){ return Number.isFinite(Number(v)) ? Number(v).toFixed(d) : "--"; }
+function fmtTime(x){
+  if(!x) return "--";
+  return new Intl.DateTimeFormat("zh-CN",{timeZone:"Asia/Shanghai",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).format(new Date(x));
+}
+function axisTime(x){
+  if(!x) return "";
+  const o=range==="10m"
+    ? {timeZone:"Asia/Shanghai",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}
+    : {timeZone:"Asia/Shanghai",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false};
+  return new Intl.DateTimeFormat("zh-CN",o).format(new Date(x)).replaceAll("/","-");
+}
+function setText(id,text){document.getElementById(id).textContent=text;}
+function showError(s){const e=document.getElementById("error");e.textContent=s||"";e.style.display=s?"block":"none";}
+function status(latest){
+  const e=document.getElementById("status");
+  if(!latest){e.textContent="暂无数据";e.style.color="#b45309";e.style.background="#fffbeb";e.style.borderColor="#fde68a";return;}
+  const sec=Math.max(0,Math.floor((Date.now()-new Date(latest.recorded_at))/1000));
+  if(sec<=150){e.textContent="设备在线｜最近上传 "+sec+" 秒前";e.style.color="#15803d";e.style.background="#ecfdf3";e.style.borderColor="#bbf7d0";}
+  else if(sec<=600){e.textContent="数据延迟｜最近上传 "+sec+" 秒前";e.style.color="#b45309";e.style.background="#fffbeb";e.style.borderColor="#fde68a";}
+  else {e.textContent="设备可能离线｜最近上传 "+Math.floor(sec/60)+" 分钟前";e.style.color="#b91c1c";e.style.background="#fef2f2";e.style.borderColor="#fecaca";}
+}
+function update(p){
+  const x=p.latest, a=p.averages||{};
+  setText("avgTitle",(p.range_label||"所选时间段")+"平均值");
+  setText("sampleNote","统计样本："+(p.count||0)+" 条");
+  setText("co2Now",n(x?.co2_ppm,0)); setText("tempNow",n(x?.temperature_c,2)); setText("humNow",n(x?.humidity_rh,2)); setText("rssiNow",n(x?.wifi_rssi,0));
+  setText("co2Avg",n(a.co2_ppm,0)); setText("tempAvg",n(a.temperature_c,2)); setText("humAvg",n(a.humidity_rh,2));
+  setText("co2Note",x?"最新记录："+fmtTime(x.recorded_at):"等待传感器数据");
+  setText("tempNote",x?"监测点："+(x.position||"point_03"):"等待传感器数据");
+  setText("humNote",x?"最新记录："+fmtTime(x.recorded_at):"等待传感器数据");
+  setText("rssiNote",x?"信号值越接近 0，连接通常越稳定":"等待传感器数据");
+  status(x);
+}
+function clearCanvas(c,msg){
+  const r=c.getBoundingClientRect(),d=devicePixelRatio||1,w=Math.max(300,r.width),h=Math.max(220,r.height);
+  c.width=w*d;c.height=h*d;const ctx=c.getContext("2d");ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
+  ctx.fillStyle="#6b7280";ctx.font="14px Microsoft YaHei";ctx.textAlign="center";ctx.fillText(msg,w/2,h/2);
+}
+function draw(id,rows,key,unit,color){
+  const c=document.getElementById(id);
+  if(!rows?.length){clearCanvas(c,"当前时间范围内没有数据");return;}
+  const r=c.getBoundingClientRect(),d=devicePixelRatio||1,w=Math.max(300,r.width),h=Math.max(220,r.height);
+  c.width=w*d;c.height=h*d;const ctx=c.getContext("2d");ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
+  const pad={l:58,r:16,t:20,b:42},pw=w-pad.l-pad.r,ph=h-pad.t-pad.b;
+  const vals=rows.map(v=>Number(v[key])).filter(Number.isFinite); if(!vals.length){clearCanvas(c,"没有可绘制的有效数据");return;}
+  let mn=Math.min(...vals),mx=Math.max(...vals),sp=mx-mn||Math.abs(mx)*.1||1,lo=mn-sp*.15,hi=mx+sp*.15;
+  if(key==="humidity_rh"){lo=Math.max(0,lo);hi=Math.min(100,hi);}
+  const xs=i=>rows.length===1?pad.l+pw/2:pad.l+i/(rows.length-1)*pw;
+  const ys=v=>pad.t+(hi-v)/(hi-lo)*ph;
+  ctx.strokeStyle="#e7ebf1";ctx.lineWidth=1;ctx.fillStyle="#6b7280";ctx.font="12px Microsoft YaHei";ctx.textAlign="right";
+  for(let i=0;i<=4;i++){const q=i/4,y=pad.t+q*ph,v=hi-q*(hi-lo);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillText(key==="co2_ppm"?Math.round(v):v.toFixed(1),pad.l-8,y+4);}
+  ctx.strokeStyle="#d9dee7";ctx.beginPath();ctx.moveTo(pad.l,pad.t+ph);ctx.lineTo(w-pad.r,pad.t+ph);ctx.stroke();
+  ctx.strokeStyle=color;ctx.lineWidth=2.2;ctx.lineJoin="round";ctx.lineCap="round";ctx.beginPath();
+  rows.forEach((row,i)=>{const x=xs(i),y=ys(Number(row[key]));i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+  const last=rows.at(-1),lx=xs(rows.length-1),ly=ys(Number(last[key]));ctx.fillStyle=color;ctx.beginPath();ctx.arc(lx,ly,3.7,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#6b7280";ctx.font="12px Microsoft YaHei";ctx.textAlign="left";ctx.fillText(unit,pad.l,13);
+  ctx.textAlign="left";ctx.fillText(axisTime(rows[0].recorded_at),pad.l,h-12);ctx.textAlign="right";ctx.fillText(axisTime(last.recorded_at),w-pad.r,h-12);
+}
+function charts(){draw("co2Chart",cacheRows,"co2_ppm","ppm","#2563eb");draw("tempChart",cacheRows,"temperature_c","℃","#dc2626");draw("humChart",cacheRows,"humidity_rh","%RH","#0891b2");}
+async function load(){
+  const b=document.getElementById("refresh");b.disabled=true;b.textContent="同步中…";showError("");
+  try{
+    const res=await fetch(API+"?range="+encodeURIComponent(range),{cache:"no-store"});
+    if(!res.ok) throw Error("HTTP "+res.status);
+    const p=await res.json();if(!p.ok) throw Error(p.error||"接口返回异常");
+    cacheRows=p.rows||[];update(p);charts();
+  }catch(err){console.error(err);showError("数据加载失败："+err.message+"。请检查 Edge Function 是否已部署，并确认已配置 CORS。");cacheRows=[];charts();}
+  finally{b.disabled=false;b.textContent="刷新数据";}
+}
+document.querySelectorAll("[data-range]").forEach(b=>b.addEventListener("click",()=>{range=b.dataset.range;document.querySelectorAll("[data-range]").forEach(x=>x.classList.toggle("active",x===b));load();}));
+document.getElementById("refresh").addEventListener("click",load);
+window.addEventListener("resize",()=>charts());
+load();setInterval(load,30000);
+</script>
+</body>
+</html>
