@@ -1,0 +1,1113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SCD41 环境监测面板</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #fff;
+      --text: #18212f;
+      --muted: #637083;
+      --line: #dfe7f0;
+      --primary: #2864dc;
+      --primary-soft: #edf3ff;
+      --ok: #16763c;
+      --warn: #af6e0a;
+      --bad: #ba3030;
+      --shadow: 0 7px 20px rgba(15, 23, 42, .055);
+      --font: SimSun, "宋体", "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+    }
+
+    .wrap {
+      width: min(1440px, calc(100% - 30px));
+      margin: 0 auto;
+      padding: 25px 0 42px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 7px;
+      font-family: var(--font);
+      font-size: 27px;
+      line-height: 1.28;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .status {
+      padding: 8px 12px;
+      border: 1px solid #bbf7d0;
+      border-radius: 999px;
+      background: #ecfdf3;
+      color: var(--ok);
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+
+    .ranges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button,
+    select {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: #334155;
+      font-family: var(--font);
+      font-size: 14px;
+    }
+
+    button {
+      padding: 9px 14px;
+      cursor: pointer;
+    }
+
+    button:hover,
+    select:hover { border-color: var(--primary); }
+
+    button.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    button.secondary {
+      border-color: #bdd0fb;
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    button:disabled,
+    select:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .error {
+      display: none;
+      margin: 0 0 14px;
+      padding: 10px 12px;
+      border: 1px solid #fecaca;
+      border-radius: 9px;
+      background: #fef2f2;
+      color: var(--bad);
+      font-size: 13px;
+    }
+
+    .section-label {
+      margin: 15px 0 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid.current { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid.average { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card {
+      min-height: 112px;
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+
+    .metric-name {
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metric-value {
+      font-size: 30px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -.3px;
+    }
+
+    .metric-unit {
+      margin-left: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 400;
+    }
+
+    .metric-note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .custom-card,
+    .chart-card {
+      margin-top: 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+
+    .custom-card { padding: 16px; }
+
+    .custom-title {
+      margin: 0 0 12px;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .custom-fields {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr 1fr auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .field { min-width: 0; }
+
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .field select {
+      width: 100%;
+      min-width: 0;
+      padding: 9px 10px;
+    }
+
+    .range-display {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .chart-card {
+      margin-top: 18px;
+      overflow: hidden;
+    }
+
+    .chart-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: baseline;
+      padding: 16px 18px 9px;
+    }
+
+    .chart-head h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .chart-head span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .chart-head-meta {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      text-align: right;
+    }
+
+    .hover-readout {
+      min-width: 248px;
+      padding: 6px 9px;
+      border: 1px solid #d9e2ee;
+      border-radius: 7px;
+      background: #f8fbff;
+      color: #415167;
+      font-size: 12px;
+      line-height: 1.45;
+      text-align: left;
+    }
+
+    .chart-panel {
+      position: relative;
+      height: 238px;
+      padding: 0 10px;
+    }
+
+    .chart-panel + .chart-panel {
+      margin-top: 7px;
+      padding-top: 10px;
+      border-top: 1px solid #edf1f5;
+    }
+
+    .chart-panel.bottom {
+      height: 292px;
+      padding-bottom: 4px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .chart-tooltip {
+      display: none !important;
+      position: absolute;
+      z-index: 4;
+      min-width: 185px;
+      padding: 9px 11px;
+      border: 1px solid rgba(15, 23, 42, .14);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .98);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, .16);
+      color: #253041;
+      font-size: 12px;
+      line-height: 1.55;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity .12s ease, transform .12s ease;
+      white-space: nowrap;
+    }
+
+    .chart-tooltip.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .tooltip-time {
+      margin-bottom: 4px;
+      color: #4b5563;
+      font-weight: 700;
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .tooltip-key { color: #6b7280; }
+    .tooltip-value { font-weight: 700; }
+
+    @media (max-width: 1040px) {
+      .custom-fields { grid-template-columns: 1fr 1fr; }
+      .custom-fields .field:first-child { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 900px) {
+      .grid.current { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid.average { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 620px) {
+      .wrap {
+        width: min(100% - 20px, 1440px);
+        padding-top: 18px;
+      }
+
+      .header { flex-direction: column; }
+      .grid.average { grid-template-columns: 1fr; }
+      .card { padding: 15px; }
+      .metric-value { font-size: 25px; }
+      .custom-fields { grid-template-columns: 1fr; }
+      .custom-fields .field:first-child { grid-column: auto; }
+      .chart-panel { height: 222px; }
+      .chart-panel.bottom { height: 278px; }
+      .chart-tooltip { font-size: 11px; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+    <section class="header">
+      <div>
+        <h1>SCD41 环境监测面板</h1>
+        <div class="subtitle">设备：esp32c3_003　｜　传感器：SCD41　｜　监测点：point_03</div>
+      </div>
+      <div id="status" class="status">正在加载</div>
+    </section>
+
+    <div id="error" class="error"></div>
+
+    <section class="toolbar">
+      <div class="ranges">
+        <button data-range="10m">10 分钟</button>
+        <button class="active" data-range="1h">1 小时</button>
+        <button data-range="12h">12 小时</button>
+        <button data-range="24h">24 小时</button>
+      </div>
+      <button id="refreshButton" class="secondary">刷新数据</button>
+    </section>
+
+    <div class="section-label">实时监测值</div>
+
+    <section class="grid current">
+      <article class="card">
+        <div class="metric-name">当前 CO₂ 浓度</div>
+        <div class="metric-value"><span id="co2Current">--</span><span class="metric-unit">ppm</span></div>
+        <div id="co2CurrentNote" class="metric-note">等待数据</div>
+      </article>
+
+      <article class="card">
+        <div class="metric-name">当前温度</div>
+        <div class="metric-value"><span id="temperatureCurrent">--</span><span class="metric-unit">℃</span></div>
+        <div id="temperatureCurrentNote" class="metric-note">等待数据</div>
+      </article>
+
+      <article class="card">
+        <div class="metric-name">当前相对湿度</div>
+        <div class="metric-value"><span id="humidityCurrent">--</span><span class="metric-unit">%RH</span></div>
+        <div id="humidityCurrentNote" class="metric-note">等待数据</div>
+      </article>
+
+      <article class="card">
+        <div class="metric-name">当前 WiFi 信号</div>
+        <div class="metric-value"><span id="rssiCurrent">--</span><span class="metric-unit">dBm</span></div>
+        <div id="rssiCurrentNote" class="metric-note">等待数据</div>
+      </article>
+    </section>
+
+    <section class="custom-card">
+      <h2 class="custom-title">历史数据区段筛选</h2>
+      <div class="custom-fields">
+        <div class="field">
+          <label for="segmentSelect">有数据的日期</label>
+          <select id="segmentSelect" disabled><option>正在读取</option></select>
+        </div>
+
+        <div class="field">
+          <label for="startSelect">起始时刻</label>
+          <select id="startSelect" disabled><option>请选择区段</option></select>
+        </div>
+
+        <div class="field">
+          <label for="endSelect">结束时刻</label>
+          <select id="endSelect" disabled><option>请选择区段</option></select>
+        </div>
+
+        <button id="applyCustomButton" class="secondary" disabled>显示区段</button>
+        <button id="resetPresetButton" disabled>返回快捷</button>
+      </div>
+      <div id="customRangeDisplay" class="range-display">尚未载入可选时段。</div>
+    </section>
+
+    <div id="averageTitle" class="section-label">最近 1 小时平均值</div>
+
+    <section class="grid average">
+      <article class="card">
+        <div class="metric-name">平均 CO₂ 浓度</div>
+        <div class="metric-value"><span id="co2Average">--</span><span class="metric-unit">ppm</span></div>
+        <div id="sampleCountNote" class="metric-note">统计样本：0 条</div>
+      </article>
+
+      <article class="card">
+        <div class="metric-name">平均温度</div>
+        <div class="metric-value"><span id="temperatureAverage">--</span><span class="metric-unit">℃</span></div>
+        <div class="metric-note">当前区段</div>
+      </article>
+
+      <article class="card">
+        <div class="metric-name">平均相对湿度</div>
+        <div class="metric-value"><span id="humidityAverage">--</span><span class="metric-unit">%RH</span></div>
+        <div class="metric-note">当前区段</div>
+      </article>
+    </section>
+
+    <section class="chart-card">
+      <div class="chart-head">
+        <h2>环境因子变化曲线</h2>
+        <div class="chart-head-meta">
+          <span id="selectionSummary">当前展示：最近 1 小时</span>
+          <div id="hoverReadout" class="hover-readout">移动鼠标或手指查看对应时间点数据</div>
+        </div>
+      </div>
+
+      <div class="chart-panel">
+        <canvas id="co2Canvas"></canvas>
+        <div class="chart-tooltip"></div>
+      </div>
+
+      <div class="chart-panel">
+        <canvas id="temperatureCanvas"></canvas>
+        <div class="chart-tooltip"></div>
+      </div>
+
+      <div class="chart-panel bottom">
+        <canvas id="humidityCanvas"></canvas>
+        <div class="chart-tooltip"></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+  const API = "https://twxiavcjslxogootefox.supabase.co/functions/v1/sensor-dashboard";
+  const TIME_ZONE = "Asia/Shanghai";
+  const GAP_BREAK_MS = 10 * 60 * 1000;
+
+  const chartConfigs = [
+    { id: "co2Canvas", key: "co2_ppm", axisTitle: "CO₂ (ppm)", color: "#2864dc", digits: 0, showXAxis: false },
+    { id: "temperatureCanvas", key: "temperature_c", axisTitle: "温度 (℃)", color: "#c92a2a", digits: 2, showXAxis: false },
+    { id: "humidityCanvas", key: "humidity_rh", axisTitle: "湿度 (%RH)", color: "#087f92", digits: 2, showXAxis: true }
+  ];
+
+  let activePreset = "1h";
+  let selectionMode = "preset";
+  let customSelection = null;
+  let chartRows = [];
+  let availabilitySegments = [];
+
+  // 三张图共用同一个悬浮记录索引。
+  let sharedHoverIndex = null;
+  let activeTooltipCanvas = null;
+  let sharedHideTimer = null;
+
+  function numberText(value, digits = 0) {
+    return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "--";
+  }
+
+  function formatTime(iso, seconds = true) {
+    if (!iso) return "--";
+    return new Intl.DateTimeFormat("zh-CN", {
+      timeZone: TIME_ZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: seconds ? "2-digit" : undefined,
+      hour12: false
+    }).format(new Date(iso));
+  }
+
+  function shortTime(iso) {
+    if (!iso) return "--";
+    return new Intl.DateTimeFormat("zh-CN", {
+      timeZone: TIME_ZONE,
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).format(new Date(iso)).replaceAll("/", "-");
+  }
+
+  function tickLines(iso) {
+    const date = new Date(iso);
+    const day = new Intl.DateTimeFormat("zh-CN", { timeZone: TIME_ZONE, month: "2-digit", day: "2-digit" }).format(date).replaceAll("/", "-");
+    const time = new Intl.DateTimeFormat("zh-CN", { timeZone: TIME_ZONE, hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+    return [day, time];
+  }
+
+  function setText(id, text) { document.getElementById(id).textContent = text; }
+
+  function showError(text) {
+    const element = document.getElementById("error");
+    element.textContent = text || "";
+    element.style.display = text ? "block" : "none";
+  }
+
+  function dataUrl() {
+    const params = new URLSearchParams({ action: "data" });
+    if (selectionMode === "custom" && customSelection) {
+      params.set("start", customSelection.start);
+      params.set("end", customSelection.end);
+    } else {
+      params.set("range", activePreset);
+    }
+    return API + "?" + params.toString();
+  }
+
+  function setStatus(latest) {
+    const element = document.getElementById("status");
+    if (!latest) {
+      element.textContent = "暂无数据";
+      element.style.color = "#af6e0a";
+      element.style.background = "#fffbeb";
+      element.style.borderColor = "#fde68a";
+      return;
+    }
+
+    const seconds = Math.max(0, Math.floor((Date.now() - new Date(latest.recorded_at).getTime()) / 1000));
+
+    if (seconds <= 150) {
+      element.textContent = "设备在线｜" + seconds + " 秒前";
+      element.style.color = "#16763c";
+      element.style.background = "#ecfdf3";
+      element.style.borderColor = "#bbf7d0";
+    } else if (seconds <= 600) {
+      element.textContent = "数据延迟｜" + seconds + " 秒前";
+      element.style.color = "#af6e0a";
+      element.style.background = "#fffbeb";
+      element.style.borderColor = "#fde68a";
+    } else {
+      element.textContent = "设备可能离线｜" + Math.floor(seconds / 60) + " 分钟前";
+      element.style.color = "#ba3030";
+      element.style.background = "#fef2f2";
+      element.style.borderColor = "#fecaca";
+    }
+  }
+
+  function updateMetrics(payload) {
+    const latest = payload.latest_global;
+    const averages = payload.averages || {};
+    const selection = payload.selection || {};
+
+    if (selection.mode === "custom") {
+      setText("averageTitle", "自定义区段平均值");
+      setText("selectionSummary", shortTime(selection.start) + " 至 " + shortTime(selection.end));
+    } else {
+      setText("averageTitle", (selection.label || "当前区段") + "平均值");
+      setText("selectionSummary", "当前展示：" + (selection.label || "快捷范围"));
+    }
+
+    setText("sampleCountNote", "统计样本：" + (payload.count || 0) + " 条");
+    setText("co2Current", numberText(latest?.co2_ppm, 0));
+    setText("temperatureCurrent", numberText(latest?.temperature_c, 2));
+    setText("humidityCurrent", numberText(latest?.humidity_rh, 2));
+    setText("rssiCurrent", numberText(latest?.wifi_rssi, 0));
+    setText("co2CurrentNote", latest ? formatTime(latest.recorded_at) : "等待数据");
+    setText("temperatureCurrentNote", latest ? (latest.position || "point_03") : "等待数据");
+    setText("humidityCurrentNote", latest ? formatTime(latest.recorded_at) : "等待数据");
+    setText("rssiCurrentNote", latest ? "" : "等待数据");
+    setText("co2Average", numberText(averages.co2_ppm, 0));
+    setText("temperatureAverage", numberText(averages.temperature_c, 2));
+    setText("humidityAverage", numberText(averages.humidity_rh, 2));
+    setStatus(latest);
+  }
+
+  function tooltipOf(canvas) {
+    return canvas.parentElement.querySelector(".chart-tooltip");
+  }
+
+  function tickIndexes(length, count = 10) {
+    if (length <= 0) return [];
+    if (length <= count) return Array.from({ length }, (_, index) => index);
+    const indexes = [];
+    for (let i = 0; i < count; i++) indexes.push(Math.round(i * (length - 1) / (count - 1)));
+    return [...new Set(indexes)];
+  }
+
+  function clearCanvas(canvas, message) {
+    const rect = canvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    const width = Math.max(300, rect.width);
+    const height = Math.max(180, rect.height);
+    canvas.width = Math.floor(width * ratio);
+    canvas.height = Math.floor(height * ratio);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#667085";
+    ctx.font = '14px SimSun, "Times New Roman", serif';
+    ctx.textAlign = "center";
+    ctx.fillText(message, width / 2, height / 2);
+  }
+
+  function stateOf(canvas, rows, config, hoverIndex = null) {
+    const rect = canvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    const width = Math.max(300, rect.width);
+    const height = Math.max(180, rect.height);
+    const padding = { left: 78, right: 18, top: 18, bottom: config.showXAxis ? 62 : 22 };
+    const plotWidth = width - padding.left - padding.right;
+    const plotHeight = height - padding.top - padding.bottom;
+    const values = rows.map(row => Number(row[config.key])).filter(Number.isFinite);
+
+    let min = Math.min(...values);
+    let max = Math.max(...values);
+    let spread = max - min;
+    if (spread === 0) spread = Math.abs(max) * 0.1;
+    if (spread === 0) spread = 1;
+
+    let low = min - spread * 0.15;
+    let high = max + spread * 0.15;
+    if (config.key === "humidity_rh") {
+      low = Math.max(0, low);
+      high = Math.min(100, high);
+    }
+
+    const xScale = index => rows.length === 1 ? padding.left + plotWidth / 2 : padding.left + index / (rows.length - 1) * plotWidth;
+    const yScale = value => padding.top + (high - value) / (high - low) * plotHeight;
+
+    return { rows, config, hoverIndex, width, height, ratio, padding, plotWidth, plotHeight, low, high, xScale, yScale };
+  }
+
+  function drawAxisTitle(ctx, state) {
+    ctx.save();
+    ctx.translate(19, state.padding.top + state.plotHeight / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = "#475467";
+    ctx.font = '13px SimSun, "Times New Roman", serif';
+    ctx.textAlign = "center";
+    ctx.fillText(state.config.axisTitle, 0, 0);
+    ctx.restore();
+  }
+
+  function renderChart(canvas, rows, config, hoverIndex = null) {
+    const tooltip = tooltipOf(canvas);
+    if (!rows || rows.length === 0) {
+      clearCanvas(canvas, "当前区段无数据");
+      tooltip.classList.remove("show");
+      canvas._chartState = null;
+      return;
+    }
+
+    const state = stateOf(canvas, rows, config, hoverIndex);
+    const { width, height, ratio, padding, plotWidth, plotHeight, low, high, xScale, yScale } = state;
+    canvas.width = Math.floor(width * ratio);
+    canvas.height = Math.floor(height * ratio);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.strokeStyle = "#e7edf4";
+    ctx.lineWidth = 1;
+    ctx.fillStyle = "#667085";
+    ctx.font = '12px SimSun, "Times New Roman", serif';
+    ctx.textAlign = "right";
+
+    for (let i = 0; i <= 4; i++) {
+      const q = i / 4;
+      const y = padding.top + q * plotHeight;
+      const value = high - q * (high - low);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
+      ctx.stroke();
+      ctx.fillText(config.key === "co2_ppm" ? Math.round(value).toString() : value.toFixed(1), padding.left - 7, y + 4);
+    }
+
+    ctx.strokeStyle = "#eef2f6";
+    tickIndexes(rows.length, 10).forEach(index => {
+      const x = xScale(index);
+      ctx.beginPath();
+      ctx.moveTo(x, padding.top);
+      ctx.lineTo(x, padding.top + plotHeight);
+      ctx.stroke();
+
+      if (config.showXAxis) {
+        const [day, time] = tickLines(rows[index].recorded_at);
+        ctx.save();
+        ctx.translate(x, height - padding.bottom + 17);
+        ctx.rotate(-Math.PI / 4);
+        ctx.fillStyle = "#667085";
+        ctx.font = '10.5px SimSun, "Times New Roman", serif';
+        ctx.textAlign = "right";
+        ctx.fillText(day, 0, -9);
+        ctx.fillText(time, 0, 2);
+        ctx.restore();
+      }
+    });
+
+    ctx.strokeStyle = "#d6dee8";
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top + plotHeight);
+    ctx.lineTo(width - padding.right, padding.top + plotHeight);
+    ctx.stroke();
+
+    drawAxisTitle(ctx, state);
+
+    ctx.strokeStyle = config.color;
+    ctx.lineWidth = 2.2;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.beginPath();
+
+    rows.forEach((row, index) => {
+      const x = xScale(index);
+      const y = yScale(Number(row[config.key]));
+      if (index === 0) ctx.moveTo(x, y);
+      else {
+        const prev = new Date(rows[index - 1].recorded_at).getTime();
+        const current = new Date(row.recorded_at).getTime();
+        if (current - prev > GAP_BREAK_MS) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+    });
+
+    ctx.stroke();
+
+    const last = rows.length - 1;
+    ctx.fillStyle = config.color;
+    ctx.beginPath();
+    ctx.arc(xScale(last), yScale(Number(rows[last][config.key])), 3.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (hoverIndex !== null && rows[hoverIndex]) {
+      const row = rows[hoverIndex];
+      const x = xScale(hoverIndex);
+      const y = yScale(Number(row[config.key]));
+
+      ctx.save();
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = "#7b8798";
+      ctx.beginPath();
+      ctx.moveTo(x, padding.top);
+      ctx.lineTo(x, padding.top + plotHeight);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = "#fff";
+      ctx.strokeStyle = config.color;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(x, y, 5.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    canvas._chartState = state;
+    bindChart(canvas);
+  }
+
+  function readoutHtml(row) {
+    return `
+      <strong>${formatTime(row.recorded_at)}</strong>
+      &nbsp;｜&nbsp; CO₂ ${numberText(row.co2_ppm, 0)} ppm
+      &nbsp;｜&nbsp; 温度 ${numberText(row.temperature_c, 2)} ℃
+      &nbsp;｜&nbsp; 湿度 ${numberText(row.humidity_rh, 2)} %RH
+      &nbsp;｜&nbsp; WiFi ${numberText(row.wifi_rssi, 0)} dBm
+    `;
+  }
+
+  function resetHoverReadout() {
+    const readout = document.getElementById("hoverReadout");
+    if (readout) {
+      readout.textContent = "移动鼠标或手指查看对应时间点数据";
+    }
+  }
+
+  function hideAllTooltips() {
+    chartConfigs.forEach(config => {
+      const canvas = document.getElementById(config.id);
+      tooltipOf(canvas).classList.remove("show");
+    });
+  }
+
+  function drawCharts() {
+    chartConfigs.forEach(config => {
+      const canvas = document.getElementById(config.id);
+      // 所有子图使用相同的行索引，因此三条虚线对应同一采样时刻。
+      renderChart(canvas, chartRows, config, sharedHoverIndex);
+    });
+  }
+
+  function pointerToSharedIndex(canvas, clientX) {
+    const state = canvas._chartState;
+    if (!state || state.rows.length === 0) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const ratio = state.rows.length === 1
+      ? 0
+      : (x - state.padding.left) / state.plotWidth;
+
+    return Math.round(
+      Math.max(0, Math.min(1, ratio)) * (state.rows.length - 1)
+    );
+  }
+
+  function showSharedHover(canvas, clientX) {
+    const index = pointerToSharedIndex(canvas, clientX);
+    if (index === null) return;
+
+    clearTimeout(sharedHideTimer);
+
+    sharedHoverIndex = index;
+    activeTooltipCanvas = canvas;
+
+    // 三张图同步重绘同一条时间虚线和高亮点。
+    drawCharts();
+
+    const state = canvas._chartState;
+    if (!state || !state.rows[index]) return;
+
+    const row = state.rows[index];
+    const readout = document.getElementById("hoverReadout");
+
+    if (readout) {
+      readout.innerHTML = readoutHtml(row);
+    }
+  }
+
+  function clearSharedHover() {
+    sharedHoverIndex = null;
+    activeTooltipCanvas = null;
+    hideAllTooltips();
+    resetHoverReadout();
+    drawCharts();
+  }
+
+  function scheduleSharedHoverClear(delay = 90) {
+    clearTimeout(sharedHideTimer);
+    sharedHideTimer = setTimeout(clearSharedHover, delay);
+  }
+
+  function bindChart(canvas) {
+    if (canvas.dataset.bound === "yes") return;
+    canvas.dataset.bound = "yes";
+
+    canvas.addEventListener("pointerenter", () => {
+      clearTimeout(sharedHideTimer);
+    });
+
+    canvas.addEventListener("pointermove", event => {
+      showSharedHover(canvas, event.clientX);
+    });
+
+    canvas.addEventListener("pointerdown", event => {
+      canvas.setPointerCapture?.(event.pointerId);
+      showSharedHover(canvas, event.clientX);
+    });
+
+    canvas.addEventListener("pointerleave", event => {
+      if (event.pointerType !== "touch") scheduleSharedHoverClear();
+    });
+
+    canvas.addEventListener("pointerup", event => {
+      if (event.pointerType === "touch") scheduleSharedHoverClear(850);
+    });
+
+    canvas.addEventListener("pointercancel", () => scheduleSharedHoverClear(0));
+  }
+
+  function option(value, label) {
+    const item = document.createElement("option");
+    item.value = value;
+    item.textContent = label;
+    return item;
+  }
+
+  function selectedSegment() {
+    const value = document.getElementById("segmentSelect").value;
+    return availabilitySegments.find(segment => segment.id === value) || null;
+  }
+
+  function updateCustomDisplay() {
+    const start = document.getElementById("startSelect").value;
+    const end = document.getElementById("endSelect").value;
+    setText("customRangeDisplay", start && end ? formatTime(start) + " 至 " + formatTime(end) : "请选择时间。");
+  }
+
+  function updateEndOptions() {
+    const segment = selectedSegment();
+    const startSelect = document.getElementById("startSelect");
+    const endSelect = document.getElementById("endSelect");
+    const applyButton = document.getElementById("applyCustomButton");
+    endSelect.innerHTML = "";
+
+    if (!segment || !startSelect.value) {
+      endSelect.disabled = true;
+      applyButton.disabled = true;
+      return;
+    }
+
+    const startTime = new Date(startSelect.value).getTime();
+    const ends = segment.slots.filter(iso => new Date(iso).getTime() >= startTime);
+
+    ends.forEach(iso => endSelect.appendChild(option(iso, formatTime(iso))));
+    endSelect.value = ends[ends.length - 1];
+    endSelect.disabled = ends.length === 0;
+    applyButton.disabled = ends.length === 0;
+    updateCustomDisplay();
+  }
+
+  function populateStartEnd(segment) {
+    const startSelect = document.getElementById("startSelect");
+    const endSelect = document.getElementById("endSelect");
+    startSelect.innerHTML = "";
+    endSelect.innerHTML = "";
+
+    if (!segment || !segment.slots || segment.slots.length === 0) {
+      startSelect.disabled = true;
+      endSelect.disabled = true;
+      return;
+    }
+
+    segment.slots.forEach(iso => startSelect.appendChild(option(iso, formatTime(iso))));
+    startSelect.value = segment.slots[0];
+    startSelect.disabled = false;
+    updateEndOptions();
+  }
+
+  function populateSegments(segments) {
+    availabilitySegments = segments || [];
+    const segmentSelect = document.getElementById("segmentSelect");
+    const resetButton = document.getElementById("resetPresetButton");
+    segmentSelect.innerHTML = "";
+
+    if (availabilitySegments.length === 0) {
+      segmentSelect.appendChild(option("", "无可用记录"));
+      segmentSelect.disabled = true;
+      resetButton.disabled = true;
+      setText("customRangeDisplay", "近 14 天内没有可用记录。");
+      return;
+    }
+
+    availabilitySegments.forEach(segment => {
+      const dayLabel = segment.day || new Intl.DateTimeFormat("zh-CN", {
+        timeZone: TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).format(new Date(segment.start)).replaceAll("/", "-");
+
+      const startText = new Intl.DateTimeFormat("zh-CN", {
+        timeZone: TIME_ZONE,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }).format(new Date(segment.start));
+
+      const endText = new Intl.DateTimeFormat("zh-CN", {
+        timeZone: TIME_ZONE,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }).format(new Date(segment.end));
+
+      const label = startText === endText
+        ? `${dayLabel}（${startText}，${segment.count} 条）`
+        : `${dayLabel}（${startText} ～ ${endText}，${segment.count} 条）`;
+
+      segmentSelect.appendChild(option(segment.id, label));
+    });
+
+    segmentSelect.value = availabilitySegments[availabilitySegments.length - 1].id;
+    segmentSelect.disabled = false;
+    resetButton.disabled = false;
+    populateStartEnd(selectedSegment());
+  }
+
+  async function loadAvailability() {
+    try {
+      const response = await fetch(API + "?action=availability", { cache: "no-store" });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const payload = await response.json();
+      if (!payload.ok) throw new Error(payload.error || "时段读取失败");
+      populateSegments(payload.segments);
+    } catch (error) {
+      console.error(error);
+      setText("customRangeDisplay", "时段读取失败：" + error.message);
+    }
+  }
+
+  async function loadDashboard() {
+    const button = document.getElementById("refreshButton");
+    button.disabled = true;
+    button.textContent = "同步中…";
+    showError("");
+
+    try {
+      const response = await fetch(dataUrl(), { cache: "no-store" });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const payload = await response.json();
+      if (!payload.ok) throw new Error(payload.error || "接口异常");
+      chartRows = payload.rows || [];
+      sharedHoverIndex = null;
+      activeTooltipCanvas = null;
+      hideAllTooltips();
+      resetHoverReadout();
+      updateMetrics(payload);
+      drawCharts();
+    } catch (error) {
+      console.error(error);
+      chartRows = [];
+      showError("数据加载失败：" + error.message);
+      drawCharts();
+    } finally {
+      button.disabled = false;
+      button.textContent = "刷新数据";
+    }
+  }
+
+  function selectPreset(range) {
+    activePreset = range;
+    selectionMode = "preset";
+    customSelection = null;
+    document.querySelectorAll("[data-range]").forEach(button => button.classList.toggle("active", button.dataset.range === range));
+    loadDashboard();
+  }
+
+  document.querySelectorAll("[data-range]").forEach(button => {
+    button.addEventListener("click", () => selectPreset(button.dataset.range));
+  });
+
+  document.getElementById("segmentSelect").addEventListener("change", () => populateStartEnd(selectedSegment()));
+  document.getElementById("startSelect").addEventListener("change", updateEndOptions);
+  document.getElementById("endSelect").addEventListener("change", updateCustomDisplay);
+
+  document.getElementById("applyCustomButton").addEventListener("click", () => {
+    const start = document.getElementById("startSelect").value;
+    const end = document.getElementById("endSelect").value;
+    if (!start || !end) return;
+    selectionMode = "custom";
+    customSelection = { start, end };
+    document.querySelectorAll("[data-range]").forEach(button => button.classList.remove("active"));
+    loadDashboard();
+  });
+
+  document.getElementById("resetPresetButton").addEventListener("click", () => selectPreset(activePreset || "1h"));
+  document.getElementById("refreshButton").addEventListener("click", async () => {
+    await Promise.all([loadDashboard(), loadAvailability()]);
+  });
+
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(drawCharts, 150);
+  });
+
+  Promise.all([loadDashboard(), loadAvailability()]);
+  setInterval(loadDashboard, 30000);
+</script>
+</body>
+</html>
